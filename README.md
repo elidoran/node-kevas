@@ -8,7 +8,7 @@ Stream replacing {{keys}} with values.
 
 Think Mustache, but, streamed instead of loading the entire string into memory to process it.
 
-Kevas : *KE*y *VA*lue *S*tream -> KE + VA + S
+Kevas : **KE**y **VA**lue **S**tream -> KE + VA + S
 
 ## Install
 
