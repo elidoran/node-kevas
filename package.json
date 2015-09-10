@@ -1,0 +1,31 @@
+{
+  "name": "kevas",
+  "version": "1.0.0",
+  "description": "Stream replacing {{keys}} with values",
+  "main": "lib",
+  "author": "Eli Doran <eli+npm@elidoran.com>",
+  "license": "MIT",
+  "keywords": [
+    "key", "keys", "value", "values", "stream", "replace", "low memory",
+    "mustache", "template"
+  ],
+  "scripts": {
+    "compile": "coffee --bare --compile lib",
+    "clean": "rm -rf lib/*.js",
+    "prepublish": "coffee --bare --compile lib",
+    "postpublish": "rm -rf lib/*.js",
+    "test": "mocha --compilers coffee:coffee-script/register --reporter spec --bail --check-leaks test/lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/elidoran/node-kevas.git"
+  },
+  "bugs": "http://github.com/elidoran/node-kevas/issues",
+  "devDependencies": {
+    "coffee-script": "^1.10.0",
+    "mocha": "^2.2.5",
+    "strung": "^1.0.3",
+    "through2": "^2.0.0"
+  },
+  "dependencies": {}
+}
