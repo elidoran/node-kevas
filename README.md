@@ -53,6 +53,7 @@ someSource.pipe(kevas).pipe(someTarget)
 # have the source as a string? write it in:
 kevas.pipe(someTarget)
 kevas.write yourString, yourEncoding, callback
+kevas.end()
 
 # or turn the string into a stream and pipe it:
 input = require('strung') 'your string content to pipe'
@@ -78,15 +79,15 @@ strings = strung 'some {{okey}} is just as good as a {{lkey}}, right?'
 internalValues = okey:'internal value'
 listenerValues = lkey:'listener value'
 
-# create our kevas instance
+# create our kevas instance which uses the internalValues
 kvs = kevas values:internalValues
 
-# add a key listener
+# add a key listener which uses the listenerValues
 kvs.on 'key', (key, push) ->
   value = listenerValues[key]
   push value if value?
 
-# add a listener for when the output is finished
+# add a listener for when the output is finished (as target, not on end as source)
 strings.on 'finish', ->
   console.log 'result:',strings.string  
 
@@ -105,9 +106,9 @@ Originally I was determined to avoid allowing escaped braces. Then, I decided I'
 
 Note, when putting an escape slash in a string you must type it twice or else the language will process it out of the string as an escape character it should handle.
 
-So, `'\\' -> \`. This will pass an escape slash on to `kevas` to handle. It will prevent a brace from being considered for wrapping a key. It will always be removed whether it's next to a brace or not.
+So, `\\ -> \`. This will pass an escape slash on to `kevas` to handle. It will prevent a brace from being considered for wrapping a key. It will always be removed whether it's next to a brace or not.
 
-And, `'\\\\' -> \\`. This will pass on two escape slashes on to `kevas` to handle. The first escapes the second leaving a single slash in the `kevas` output.
+And, `\\\\ -> \\`. This will pass on two escape slashes on to `kevas` to handle. The first escapes the second leaving a single slash in the `kevas` output.
 
 `\\{{key}} -> {{key}}` First brace is escaped preventing a full wrapping so the key isn't processed.
 
@@ -122,13 +123,13 @@ And, `'\\\\' -> \\`. This will pass on two escape slashes on to `kevas` to handl
 
 Can this parse mustache templates? No? Yes? I think there are some variations between our parsing results. I intend to load some tests which run against the `mustache` module to monitor its functionality. Then, make a "mode" in options to have this adhere to mustache's parsing style.
 
-Can this parse handlebars templates? No. This module only considers the contents of the `{{}}` to be a string representing the key for the value. Handlebars does more and has logic and other things in there. It's possible to get the keys from via module and do anything you'd like with them, so, treat them as a bit of code for Handlebars and you're all set.
+Can this parse handlebars templates? No. This module only considers the contents of the `{{}}` to be a string representing the key for the value. Handlebars does more and has logic and other things in there. It's possible to get the keys via this module and do anything you'd like with them, so, treat them as a bit of code for Handlebars and you're all set.
 
 ## Why?
 
 I made this module so I could use it to process files via streaming and replace keys with values as it streams.
 
-I looked at `mustache` and `handlebars` and a few other modules. Each required loading the entire string to process it.
+I looked at `mustache` and `handlebars` and a few other modules. Each required loading the entire string to process it. And, most used regular expressions (I like regular expressions, just, not for this parsing task).
 
 ```coffeescript
 # create a replacing stream referencing the key/value pairs we have.
