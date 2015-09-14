@@ -19,10 +19,9 @@ npm install kevas --save
 ## Usage: Simple
 
 ```coffeescript
-kevas = require 'kevas'                   # get kevas
-kvs = kevas values:key:'value'            # create with a key/value map
-sourceStream.pipe(kvs).pipe(targetStream) # pipe text thru kevas to target
-targetStream.on 'finish', ->              # do something when finished
+kevas = require('kevas') key:'value'   # create kevas with a key/value map
+source.pipe(kevas).pipe(target)        # pipe text thru kevas to target
+target.on 'finish', ->                 # do something when finished
   console.log 'all done, targetStream has it all...'
 ```
 
@@ -97,7 +96,7 @@ kvs.on 'key', (event) ->
   value = listenerValues[event.key]
   event.values.push value if value?
 
-# add a listener for when the output is finished (as target, not on end as source)
+# add a listener for when the output is finished (as target, not on *end* as source)
 strings.on 'finish', ->
   console.log 'result:',strings.string  
 
@@ -107,8 +106,32 @@ strings.pipe(kvs).pipe(strings)
 #console :=>
 # result: some internal value is just as good as a listener value, right?
 
-# NOTE: if the key existed in both and both pushed then both values would
+# NOTE: if the key existed in both, and both pushed their value, then both values would
 # be in the result.
+
+# NOTE: the later listener can see previously provided values in
+# `event.values` array, and can remove or edit them.
+```
+
+## Creating Kevas instance
+
+```coffeescript
+# 1. direct at require time
+kevas = require('kevas') keyValueObject
+
+# 2. from required builder function
+kevas = require 'kevas'
+kvs   = kevas keyValueObject
+
+# 3. from Kevas class
+{Kevas} = require 'kevas'
+kvs = new Kevas keyValueObject
+```
+
+For JavaScript without destructuring assignments:
+```JavaScript
+var Kevas = require('kevas').Kevas
+var kvs   = new Kevas(keyValueObject)
 ```
 
 ## Listeners
