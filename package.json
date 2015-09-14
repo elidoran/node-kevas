@@ -6,8 +6,15 @@
   "author": "Eli Doran <eli+npm@elidoran.com>",
   "license": "MIT",
   "keywords": [
-    "key", "keys", "value", "values", "stream", "replace", "low memory",
-    "mustache", "template"
+    "key",
+    "keys",
+    "value",
+    "values",
+    "stream",
+    "replace",
+    "low memory",
+    "mustache",
+    "template"
   ],
   "scripts": {
     "compile": "coffee --bare --compile lib",
@@ -27,5 +34,7 @@
     "strung": "^1.0.3",
     "through2": "^2.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "async": "^1.4.2"
+  }
 }
