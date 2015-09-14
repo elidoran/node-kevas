@@ -1,4 +1,10 @@
 
+2.0.1 - Released 2015/09/14
+
+1. corrected example section for new API
+2. added new section about listeners
+3. added new section about instance creation
+
 2.0.0 - Released 2015/09/13
 
 1. onkey listeners executed via async.waterfall to allow later listeners to override value contributions of earlier listeners, and maintain ability for a listener to do async work before pushing content.
