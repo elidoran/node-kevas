@@ -21,9 +21,9 @@ npm install kevas --save
 ```coffeescript
 kevas = require 'kevas'
 kvs = kevas values:key:'value'
-kvs.on 'key', (key, push) ->
-  value = getValueForKey key
-  push value if value?
+kvs.on 'key', (event) ->
+  value = getValueForKey event.key
+  event.values.push value if value?
 sourceStream.pipe(kvs).pipe(targetStream)
 targetStream.on 'finish', -> console.log 'all done, targetStream has it all...'
 ```
@@ -37,13 +37,25 @@ kevas = require('kevas') values:
   an:'other'
   thing:'here'
 
-# 2. or, provide an event listener to handle the keys
-#    receives the key found and the streams `push` method to push the value
-#    NOTE: `push` is the stream's push function bound to it, nothing else
-kevas.on 'key', (key, push) ->
-  value = getValueForKey key
-  if value? then push value
-  else ; # do what you decide...
+# 2. or, provide an event listener to handle the keys.
+# receives `event` which contains:
+#   key: the key
+#   values: an array to add values to which will be pushed to the stream
+kevas.on 'key', (event) ->
+  value = getValueForKey event.key
+  if value? then event.values.push value
+  else
+    # do what you decide...
+
+# 3. or, event listener can do async work
+kevas.on 'key', (event, next) ->
+  getValueForKey event.key, (value) ->
+    if value?
+      event.values.push value
+    else
+      # do what you decide...
+    # call next listener. provide the event
+    next undefined, event
 
 # pipe in the content with the keys and pipe out the result with value replacements.
 someSource.pipe(kevas).pipe(someTarget)
