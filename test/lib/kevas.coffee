@@ -28,6 +28,12 @@ describe 'test kv-stream', ->
       result:'value'
     }
     {
+      desc: 'with a single key surrouned by space'
+      output:['{{ key }}']
+      values: key:'value'
+      result:'value'
+    }
+    {
       desc: 'with a single key surrounded by text'
       output:['some {{key}} value']
       values: key:'good'
