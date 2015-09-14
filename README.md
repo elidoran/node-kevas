@@ -95,9 +95,9 @@ listenerValues = lkey:'listener value'
 kvs = kevas values:internalValues
 
 # add a key listener which uses the listenerValues
-kvs.on 'key', (key, push) ->
-  value = listenerValues[key]
-  push value if value?
+kvs.on 'key', (event) ->
+  value = listenerValues[event.key]
+  event.values.push value if value?
 
 # add a listener for when the output is finished (as target, not on end as source)
 strings.on 'finish', ->
@@ -112,6 +112,16 @@ strings.pipe(kvs).pipe(strings)
 # NOTE: if the key existed in both and both pushed then both values would
 # be in the result.
 ```
+
+## Listeners
+
+Adding key listeners allows:
+
+1. asynchronous operations to translate keys
+2. override values submitted by previous listeners
+
+Note, the first listener uses the internal values provided when the Kevas instance was created. So, to override the internal values, use a listener and remove that value from the result array: `event.values`.
+
 ## Escapes
 
 Originally I was determined to avoid allowing escaped braces. Then, I decided I'd better allow it and added the functionality. It added some small work in the module.
