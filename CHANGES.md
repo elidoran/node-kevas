@@ -1,4 +1,8 @@
 
+2.0.2 - Released 2015/09/21
+
+1. added its name to its keywords because it wasn't showing up in npmjs.com search
+
 2.0.1 - Released 2015/09/14
 
 1. corrected example section for new API
