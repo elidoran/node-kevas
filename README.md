@@ -3,7 +3,6 @@
 [![Dependency Status](https://gemnasium.com/elidoran/node-kevas.png)](https://gemnasium.com/elidoran/node-kevas)
 [![npm version](https://badge.fury.io/js/kevas.svg)](http://badge.fury.io/js/kevas)
 
-
 Stream replacing {{keys}} with values.
 
 Think Mustache, but, streamed instead of loading the entire string into memory to process it.
