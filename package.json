@@ -37,6 +37,6 @@
   },
   "dependencies": {
     "async": "^1.4.2",
-    "stream-search-helper": "^0.5.0"
+    "stream-search-helper": "^0.6.1"
   }
 }
