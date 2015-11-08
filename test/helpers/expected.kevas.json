@@ -1,0 +1,12 @@
+{
+     "static" : "static value",
+       "key1" : "good",
+       "key2" : " good",
+       "key3" : "good ",
+       "key4" : " good ",
+     "phrase" : "some good value",
+   "escaped1" : "escaped1 {{key}} value",
+ "unescaped2" : "unescaped2 \\good value",
+     "slash2" : "slash2 \\ value",
+     "slash4" : "slash4 \\\\ value"
+}
