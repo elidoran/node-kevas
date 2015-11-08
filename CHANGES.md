@@ -1,3 +1,10 @@
+Unreleased
+
+1. remove large parsing code, replace with stream-search-helper use
+2. remove tests for escaping inner braces, can only escape first of two braces
+3. add file streaming tests to see how it's all handled
+4. alter how escapes are input to the tests to more match how it should work based on file streaming tests
+5. step up major version (again) because these change how kevas works
 
 2.0.2 - Released 2015/09/21
 
