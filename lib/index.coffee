@@ -1,9 +1,16 @@
-async = require 'async'
+async    = require 'async'
+buildSearch = require 'stream-search-helper'
 
 class Kevas extends (require 'stream').Transform
   constructor: (options) ->
     super options
-    @_parse = opening
+    @_handleExtra = @_pushString
+    @_search = buildSearch
+      delim:/(\\{1,2})?({{|}})/
+      min:4 # \\{{ is 4
+      recurse:true # get all results at once from chunk
+      groups:2 # two regex groups we want
+    @_key = ''
     starter = (next) -> next undefined, key:starter.key, values:[]
     @_keyListeners = [starter]
     if options?.values?
@@ -11,16 +18,68 @@ class Kevas extends (require 'stream').Transform
       @on 'key', (context) ->
         context.values.push values[context.key] if values[context.key]?
 
+  _appendKey: (string) -> @_key += string  # accumulate key value
+
+  _pushString: (string) -> @push string    # push strings to the next stream
+
+  _combine: (result) ->
+    delim = result.delim
+    string = result.before
+    result = switch delim.length
+      when 2 then string             # just braces
+      when 4 then string + '\\\\'    # escaped slashes are retained
+
+    return result
+
   _transform: (string, encoding, done) ->
+
     string = string.toString 'utf8' # buffer becomes string, string returns itself
-    @_parser string, done
+    results = @_search string
+    @_parse results, done
 
-  _parser: (string, next) ->
-    parse = @_parse
-    parse = parse(this, string, next) while parse?
+  _parse: (results, done) ->
 
-  _flush: (done) -> #if @_parse is closing # TODO: log warning about an unclosed tag?
-    @push keyOf this if this.__key?.length > 0
+    while results.length > 0
+      result = results.shift()
+
+      # if it's a value before a found delim and it 'isn't escaped by a slash
+      if result.before? and result.g1 isnt '\\'
+        # what we do depends on the delim, more specifically, g2
+        switch result.g2 # use `g2` instead of `delim` to ignore captured slashes
+
+          when '{{'                      # string is before the start of a key
+            @_handleExtra = @_appendKey  # for later strings, append to `key`
+            string = @_combine result    # combine `.before` and delim part
+            @push string                 # push the regular string
+
+          when '}}'                        # string is before the end of a key
+            if @_handleExtra is @_pushString
+              # then the open braces were escaped, so, don't do key stuff
+              @_pushString @_combine(result) + '}}'
+            else
+              @_handleExtra = @_pushString   # for later strings, push them
+              key = @_key + @_combine result # get the accumulated key and emit it
+              @_key = ''                     # reset key to empty string for appending
+              if results.length > 0 then process.nextTick =>
+              return @_emitKey key.trim(), (error) =>
+                #if error? then return console.error 'key listeners error: ',error.message
+                if error? then done error
+                else @_parse results, done
+
+      # if it's a string without a delim after it, handle one of two ways:
+      #  1. we're in non-key mode, so, it'll call _pushString
+      #  2. we're in key mode, so, it'll call _appendKey
+      else if result.string? then @_handleExtra result.string
+
+      else # it found an escaped delim, so treat it like an extra string
+        @_handleExtra result.before + result.g2
+
+    # all done with results/chunk
+    done()
+
+  _flush: (done) -> # TODO: log warning about an unclosed tag?
+    end = @_search.end()            # get anything left in the searcher
+    @push end.string if end?.string?  # push it if there was something
     done()
 
   on: (event, listener) ->
@@ -40,102 +99,19 @@ class Kevas extends (require 'stream').Transform
     # TODO: slice() array to make a copy?
     @_keyListeners[0].key = key
     async.waterfall @_keyListeners, (error, result) =>
-      if error? then console.error 'key listeners error: ',error.message
+      if error? then done error
       else
         @push value for value in result.values
         process.nextTick done
 
-
-opening = (stream, string, done) ->
-  stream._parse = opening
-  start = 0
-  for ch,i in string
-    if ch is '\\' # if we see an escape character
-      if stream.__slashIndex isnt (i - 1) # if previous character is NOT an escape character
-        stream.push string[start...i] # push all content up to the character
-        if i is string.length - 1
-          stream.__slashIndex = -1
-          return -> done()
-        else
-          stream.__slashIndex = i # record the index of this character
-          start = i + 1 # move next start to this character
-      else # there's a previous escape character *escaping* this one
-        stream.push string[start...i-1] unless i is start # push all content before the first escape char
-        start = i # move start to this character
-        delete stream.__slashIndex # stop remembering slash because the pair counts as one slash now
-    else if ch is '{'
-      if stream.__slashIndex isnt (i - 1) # (when i=0, slashIndex may be -1 from previous chunk)
-        stream.push string[start...i] unless start is i
-        start = i
-        if i is string.length - 1 then stream._parse = openingDelim ; return -> done()
-        else if string[i+1] is '{' then return -> closing stream, string[i+2..], done
-      else # the opening brace has been escaped, so, treat it like a regular char
-        delete stream.__slashIndex #start++ # skip the slash tho because it was *used* to escape the brace
-
-  if start < string.length then stream.push string[start..]
-  return -> done()
-
-closing = (stream, string, done) ->
-  stream._parse = closing
-  start = 0
-  for ch,i in string
-    if ch is '\\' # if we see an escape character
-      if stream.__slashIndex isnt (i - 1) # if previous character is NOT an escape character
-        keyOf stream, string[start...i] unless i is start # push all content up to the character
-        if i is string.length - 1 then stream.__slashIndex = -1 ; return -> done()
-        else
-          stream.__slashIndex = i # record the index of this character
-          start = i + 1 # move next start to this character
-      else # there's a previous escape character *escaping* this one
-        keyOf stream, string[start...i-1] # push all content before the first escape char
-        start = i # move start to this character
-        delete stream.__slashIndex # stop remembering slash because the pair counts as one slash now
-
-    else if ch is '}'
-      if stream.__slashIndex isnt (i - 1) # (when i=0, slashIndex may be -1 from previous chunk)
-        keyOf stream, string[start...i] unless start is i
-        start = i
-        if i is string.length - 1
-          stream._parse = closingDelim
-          return -> done()
-        else if string[i+1] is '}'
-          return emitKey stream, string[i+2...], done
-      else # the opening brace has been escaped, so, treat it like a regular char
-        delete stream.__slashIndex
-
-  if start < string.length then keyOf stream, string[start..]
-  return -> done()
-
-emitKey = (stream, string, done) ->
-  key = keyOf stream
-  #stream.emit 'key', key:key, values:[], next:-> opening stream, string
-  stream._emitKey key, ->
-    stream._parse = opening
-    stream._parser string, done
-  return
-
-openingDelim = (stream, string, done) -> delim stream, string, done, opening, '{', closing, true
-closingDelim = (stream, string, done) -> delim stream, string, done, closing, '}', emitKey, false
-
-delim = (stream, string, done, continuing, char, switching, openingMode) ->
-  # we're starting with a delimeter from previous chunk
-  if string[0] is char
-    return -> switching stream, string[1..], done
-  else
-    if openingMode then stream.push(char) else keyOf(stream, char)
-    return -> continuing stream, string, done
-
-keyOf = (stream, key) ->
-  if key? then stream.__key = (stream.__key ? '') + key
-  else
-    key = stream.__key.trim()
-    delete stream.__key
-    return key
-
-# Use three ways:
-#  1. Kevas = require('kvstream').Kevas
-#  2. kvstream = require('kvstream')
-#     stream = kvstream(options)
-#  3. stream = require('kvstream') (options)
+# Use these ways:
+#  1. buildKevas = require 'kvstream'
+#     stream = buildKevas options
+#
+#  2. stream = require('kevas') (options)
+#
+#  3a. {Kevas} = require 'kevas'
+#  3b. Kevas = require('kevas').Kevas
+#      stream = new Kevas some:'options'
 module.exports = (options) -> new Kevas options
 module.exports.Kevas = Kevas
