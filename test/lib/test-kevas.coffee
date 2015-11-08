@@ -2,8 +2,9 @@ assert   = require 'assert'
 kevas    = require '../../lib'
 strung   = require 'strung'
 through  = require 'through2'
+Path     = require 'fspath'
 
-describe 'test kv-stream', ->
+describe 'test kevas', ->
 
   shouldReplaceKeyWithValue = 'should replace the key with its value'
   for test in [
@@ -70,25 +71,25 @@ describe 'test kv-stream', ->
       result:'some good value'
     }
     {
-      desc: 'with a single escape slash'
-      should:'should have no slash'
+      desc: 'with one escape slashes next to each other'
+      should:'should include a single slash'
       output:['some \\ value']
       values: key:'good'
-      result:'some  value'
+      result:'some \\ value'
     }
     {
       desc: 'with two escape slashes next to each other'
       should:'should include a single slash'
       output:['some \\\\ value']
       values: key:'good'
-      result:'some \\ value'
+      result:'some \\\\ value'
     }
     {
       desc: 'with escaped opening brace'
       should:'should include the brace without the slash'
-      output:['some \\{ value']
+      output:['some \\{{ value']
       values: key:'good'
-      result:'some { value'
+      result:'some {{ value'
     }
     {
       desc: 'with an escape slash before first opening brace which voids key'
@@ -98,55 +99,28 @@ describe 'test kv-stream', ->
       result:'some {{key}} value'
     }
     {
-      desc: 'with an escape slash before second opening brace which voids key'
-      should:'should match input without key replacement'
-      output:['some {\\{key}} value']
-      values: key:'good'
-      result:'some {{key}} value'
-    }
-    {
-      desc: 'with an escape slash before first closing brace which makes it part of the key'
-      should:'should use brace as part of key'
-      output:['some {{key\\}}} value']
-      values: key:'good', 'key}':'better'
-      result:'some better value'
-    }
-    {
-      desc: 'with an escape slash before second opening brace which makes both braces part of the key'
-      output:['some {{key}\\}}} value']
-      values: key:'good', 'key}}':'better', 'key}':'wrong'
-      result:'some better value'
-    }
-    {
       desc: 'with two escape slashes before first opening brace which doesnt affect the key'
       output:['some \\\\{{key}} value']
       values: key:'good'
-      result:'some \\good value'
+      result:'some \\\\good value'
     }
 
     # # # # # # # # # # # # # # # # # # # # # # # #
       # now redo escape test with split output  #
     # # # # # # # # # # # # # # # # # # # # # # # #
     {
-      desc: 'with a single escape slash'
-      should:'should have no slash'
-      output:['some \\', ' value']
-      values: key:'good'
-      result:'some  value'
-    }
-    {
       desc: 'with two escape slashes next to each other'
       should:'should include a single slash'
       output:['some \\', '\\ value']
       values: key:'good'
-      result:'some \\ value'
+      result:'some \\\\ value'
     }
     {
       desc: 'with escaped opening brace'
       should:'should include the brace without the slash'
-      output:['some \\', '{ value']
+      output:['some \\', '{{ value']
       values: key:'good'
-      result:'some { value'
+      result:'some {{ value'
     }
     {
       desc: 'with an escape slash before first opening brace which voids key'
@@ -156,37 +130,25 @@ describe 'test kv-stream', ->
       result:'some {{key}} value'
     }
     {
-      desc: 'with an escape slash before second opening brace which voids key'
+      desc: 'with an escape slash before first opening brace which voids key'
       should:'should match input without key replacement'
-      output:['some {\\', '{key}} value']
+      output:['some \\{', '{key}} value']
       values: key:'good'
       result:'some {{key}} value'
-    }
-    {
-      desc: 'with an escape slash before first closing brace which makes it part of the key'
-      should:'should use brace as part of key'
-      output:['some {{key\\', '}}} value']
-      values: key:'good', 'key}':'better'
-      result:'some better value'
-    }
-    {
-      desc: 'with an escape slash before second opening brace which makes both braces part of the key'
-      output:['some {{key}\\', '}}} value']
-      values: key:'good', 'key}}':'better', 'key}':'wrong'
-      result:'some better value'
     }
     {
       desc: 'with two escape slashes before first opening brace which doesnt affect the key'
       output:['some \\\\', '{{key}} value']
       values: key:'good'
-      result:'some \\good value'
+      result:'some \\\\good value'
     }
+
     {
       desc: 'with lots of output chunks'
       should:'should still escape a brace and match proper key'
-      output:['some {', '{', 'key}', '\\', '}', '}', '} value']
-      values: key:'good', 'key}}':'better', 'key}':'wrong'
-      result:'some better value'
+      output:['some {', '{', 'key', '}', '} value']
+      values: key:'good'
+      result:'some good value'
     }
 
   ]
@@ -203,13 +165,13 @@ describe 'test kv-stream', ->
 
           # create a sink stream to collect all it receives into a string
           output = strung()
-          # when all writes are finished to it verify the results
+
+          # when all writes are finished then verify the results
           output.on 'finish', ->
             assert.equal output?.string, test.result
-            # tell Mocha the test is done
-            done()
+            done() # tell Mocha the test is done
 
-          # send any errors to Moch's callback
+          # send any errors to Mocha's callback
           input.on  'error', done
           stream.on 'error', done
           output.on 'error', done
@@ -233,4 +195,42 @@ describe 'test kv-stream', ->
           writeout()
 
 # TODO: set of tests using a file stream as input (use filed? or paths?)
+  describe 'with json file input stream', ->
+
+    it 'should convert unescaped keys to values', (done) ->
+
+      dir = new Path 'test/helpers'
+
+      file = dir.to 'kevas.json'
+
+      expected = JSON.parse dir.to('expected.kevas.json').read()
+
+      stream = kevas values:key:'good'
+
+      output = strung()
+
+      # when all writes are finished then verify the results
+      output.on 'finish', (error) ->
+        if error? then return done error
+        result = JSON.parse output.string
+        assert.deepEqual result, expected
+        done() # tell Mocha the test is done
+
+      # send any errors to Mocha's callback
+      stream.on 'error', done
+      output.on 'error', done
+
+      options = # send errors to `done`
+        reader:
+          events:
+            'error': done
+        writer:
+          events:
+            'error': done
+
+      # pipe our test input to our stream and then to our output collector.
+      file.pipe(stream, options).pipe(output)
+
+
+
 # TODO: set of tests using a file stream as output (use filed? or paths?)
