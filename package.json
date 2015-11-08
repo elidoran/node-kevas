@@ -31,12 +31,13 @@
   "bugs": "http://github.com/elidoran/node-kevas/issues",
   "devDependencies": {
     "coffee-script": "^1.10.0",
+    "fspath": "^0.14.0",
     "mocha": "^2.2.5",
     "strung": "^1.0.3",
     "through2": "^2.0.0"
   },
   "dependencies": {
     "async": "^1.4.2",
-    "stream-search-helper": "^0.6.1"
+    "stream-search-helper": "^0.7.1"
   }
 }
