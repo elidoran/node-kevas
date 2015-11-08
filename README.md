@@ -18,7 +18,7 @@ npm install kevas --save
 ## Usage: Simple
 
 ```coffeescript
-kevas = require('kevas') key:'value'   # create kevas with a key/value map
+kevas = require('kevas') values:key:'value'   # create kevas with a key/value map
 source.pipe(kevas).pipe(target)        # pipe text thru kevas to target
 target.on 'finish', ->                 # do something when finished
   console.log 'all done, targetStream has it all...'
@@ -77,7 +77,7 @@ someSource.pipe(kevas).pipe(output)
 ## Example
 
 ```coffeescript
-kevas  = require 'kevas'
+buildKevas  = require 'kevas'
 strung = require 'strung'
 
 # create our from/input/source stream, also used as to/output/target stream
@@ -88,10 +88,10 @@ internalValues = okey:'internal value'
 listenerValues = lkey:'listener value'
 
 # create our kevas instance which uses the internalValues
-kvs = kevas values:internalValues
+kevas = buildKevas values:internalValues
 
 # add a key listener which uses the listenerValues
-kvs.on 'key', (event) ->
+kevas.on 'key', (event) ->
   value = listenerValues[event.key]
   event.values.push value if value?
 
@@ -100,7 +100,7 @@ strings.on 'finish', ->
   console.log 'result:',strings.string  
 
 # finally pipe our string thru kevas and into a collecting stream
-strings.pipe(kvs).pipe(strings)
+strings.pipe(kevas).pipe(strings)
 
 #console :=>
 # result: some internal value is just as good as a listener value, right?
@@ -119,18 +119,18 @@ strings.pipe(kvs).pipe(strings)
 kevas = require('kevas') keyValueObject
 
 # 2. from required builder function
-kevas = require 'kevas'
-kvs   = kevas keyValueObject
+buildKevas = require 'kevas'
+kevas      = buildKevas keyValueObject
 
 # 3. from Kevas class
 {Kevas} = require 'kevas'
-kvs = new Kevas keyValueObject
+kevas   = new Kevas keyValueObject
 ```
 
 For JavaScript without destructuring assignments:
 ```JavaScript
 var Kevas = require('kevas').Kevas
-var kvs   = new Kevas(keyValueObject)
+var kevas = new Kevas(keyValueObject)
 ```
 
 ## Listeners
@@ -155,10 +155,6 @@ And, `\\\\ -> \\`. This will pass on two escape slashes on to `kevas` to handle.
 `\\{{key}} -> {{key}}` First brace is escaped preventing a full wrapping so the key isn't processed.
 
 `{\\{{{key}} -> {{value` First brace isn't part of an opening pair, so, it is passed on as is. Second brace is escaped so it is passed on as is (it's also what prevents the first from being part of a pair). Remaining braces wrap `key` so it is replaced with its value.
-
-`{{key\\}}} -> value` The escaped closing brace isn't used as part of the closing pair so it becomes part of the *key*: `key}`.
-
-`{{key}\\}}} -> value` The escaped closing brace prevents the first closing brace from being part of a pair. So, the first two closing braces become part of the key: `key}}`. The last two closing braces are the closing pair wrapping the key.
 
 
 ## Compatibility
