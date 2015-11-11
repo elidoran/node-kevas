@@ -1,5 +1,6 @@
 async    = require 'async'
 buildSearch = require 'stream-search-helper'
+buildChain  = require 'chain-builder'
 
 class Kevas extends (require 'stream').Transform
   constructor: (options) ->
@@ -11,11 +12,10 @@ class Kevas extends (require 'stream').Transform
       recurse:true # get all results at once from chunk
       groups:2 # two regex groups we want
     @_key = ''
-    starter = (next) -> next undefined, key:starter.key, values:[]
-    @_keyListeners = [starter]
+
     if options?.values?
       values = options.values
-      @on 'key', (context) ->
+      @on 'key', (control, context) ->
         context.values.push values[context.key] if values[context.key]?
 
   _appendKey: (string) -> @_key += string  # accumulate key value
@@ -84,25 +84,31 @@ class Kevas extends (require 'stream').Transform
 
   on: (event, listener) ->
     if event is 'key'
-      if listener.length < 2 # then there's no callback arg. so, we want to call it for them
-        listener = do(fn = listener) -> (context, next) ->
-          try
-            fn context
-            next undefined, context
-          catch error
-            next error
-      @_keyListeners ?= []
-      @_keyListeners.push listener
+      unless @_chain?
+        @_chain = buildChain array:[listener]
+      else
+        @_chain.add listener
     else super event, listener
 
+  once: (event, listener) ->
+    if event is 'key'
+      fn = (next, context) =>
+        result = listener next, context
+        @_chain.remove fn
+        return result
+      @_chain.add fn
+    else super event, listener # there are no other events we use...
+
+  off: (event, listener) ->
+    if event is 'key' then @_chain.remove listener
+    else super event, listener # there are no other events we use...
+
   _emitKey: (key, done) ->
-    # TODO: slice() array to make a copy?
-    @_keyListeners[0].key = key
-    async.waterfall @_keyListeners, (error, result) =>
-      if error? then done error
-      else
-        @push value for value in result.values
-        process.nextTick done
+    context = key:key, values:[]
+    @_chain.run context:context, done:(error) =>
+      if error? then return done error
+      @push value for value in context.values
+      process.nextTick done
 
 # Use these ways:
 #  1. buildKevas = require 'kvstream'
