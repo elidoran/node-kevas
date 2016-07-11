@@ -144,18 +144,8 @@ Note, the first listener uses the internal values provided when the Kevas instan
 
 ## Escapes
 
-Originally I was determined to avoid allowing escaped braces. Then, I decided I'd better allow it and added the functionality. It added some small work in the module.
-
-Note, when putting an escape slash in a string you must type it twice or else the language will process it out of the string as an escape character it should handle.
-
-So, `\\ -> \`. This will pass an escape slash on to `kevas` to handle. It will prevent a brace from being considered for wrapping a key. It will always be removed whether it's next to a brace or not.
-
-And, `\\\\ -> \\`. This will pass on two escape slashes on to `kevas` to handle. The first escapes the second leaving a single slash in the `kevas` output.
-
-`\\{{key}} -> {{key}}` First brace is escaped preventing a full wrapping so the key isn't processed.
-
-`{\\{{{key}} -> {{value` First brace isn't part of an opening pair, so, it is passed on as is. Second brace is escaped so it is passed on as is (it's also what prevents the first from being part of a pair). Remaining braces wrap `key` so it is replaced with its value.
-
+Originally I was determined to avoid allowing escaped braces. Then, I decided I'd better allow it and added the functionality.
+It's a pain to implement, so, I've simplified it. An escape slash before the first of a pair of braces will escape that pair.
 
 ## Compatibility
 
