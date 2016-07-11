@@ -1,4 +1,3 @@
-async    = require 'async'
 buildSearch = require 'stream-search-helper'
 buildChain  = require 'chain-builder'
 
