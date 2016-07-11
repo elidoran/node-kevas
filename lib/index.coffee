@@ -83,7 +83,7 @@ class Kevas extends (require 'stream').Transform
 
   on: (event, listener) ->
     if event is 'key'
-      unless @_chain?
+      unless @`_chain`?
         @_chain = buildChain array:[listener]
       else
         @_chain.add listener
@@ -110,7 +110,7 @@ class Kevas extends (require 'stream').Transform
       process.nextTick done
 
 # Use these ways:
-#  1. buildKevas = require 'kvstream'
+#  1. buildKevas = require 'kevas'
 #     stream = buildKevas options
 #
 #  2. stream = require('kevas') (options)
