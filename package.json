@@ -37,7 +37,6 @@
     "through2": "^2.0.0"
   },
   "dependencies": {
-    "async": "^1.4.2",
     "chain-builder": "^0.7.0",
     "stream-search-helper": "^0.7.1"
   }
