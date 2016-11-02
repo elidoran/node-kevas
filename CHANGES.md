@@ -4,7 +4,10 @@ Unreleased
 2. remove tests for escaping inner braces, can only escape first of two braces
 3. add file streaming tests to see how it's all handled
 4. alter how escapes are input to the tests to more match how it should work based on file streaming tests
-5. step up major version (again) because these change how kevas works
+5. swap async.waterfall for chain-builder
+6. step up major version (again) because these change how kevas works
+7. update deps
+
 
 2.0.2 - Released 2015/09/21
 
