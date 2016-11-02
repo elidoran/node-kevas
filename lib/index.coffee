@@ -83,7 +83,7 @@ class Kevas extends (require 'stream').Transform
 
   on: (event, listener) ->
     if event is 'key'
-      unless @`_chain`?
+      unless @_chain?
         @_chain = buildChain array:[listener]
       else
         @_chain.add listener
