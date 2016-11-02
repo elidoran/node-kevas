@@ -18,11 +18,12 @@
     "template"
   ],
   "scripts": {
-    "compile": "coffee --bare --compile lib",
-    "clean": "rm -rf lib/*.js",
-    "prepublish": "npm run compile",
+    "build": "coffee --bare --compile lib bin",
+    "clean": "rm -rf lib/*.js bin/command.js",
+    "prepublish": "npm run build",
     "postpublish": "npm run clean",
-    "test": "mocha --compilers coffee:coffee-script/register --reporter spec --bail --check-leaks test/lib"
+    "test": "mocha --compilers coffee:coffee-script/register --reporter spec --bail --check-leaks test/lib",
+    "devrun":"coffee bin/kevas.js"
   },
   "repository": {
     "type": "git",
