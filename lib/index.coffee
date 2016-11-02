@@ -91,9 +91,9 @@ class Kevas extends (require 'stream').Transform
 
   once: (event, listener) ->
     if event is 'key'
-      fn = (next, context) =>
-        result = listener next, context
-        @_chain.remove fn
+      fn = (control, context) =>
+        result = listener control, context
+        control.remove()
         return result
       @_chain.add fn
     else super event, listener # there are no other events we use...
