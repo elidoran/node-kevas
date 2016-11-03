@@ -1,0 +1,14 @@
+just testing {{test}} in some text
+just testing {{key}} in some text
+just testing {{key}} in some text
+just testing {{key}} in some text
+just testing {{key}} in some text
+just testing {{key}} in some text
+just testing {{key}} in some text
+just testing {{key}} in some text
+
+a cli key all alone? {{alone}}
+
+a cli key=value pair has value = {{pairKey}}
+
+  
