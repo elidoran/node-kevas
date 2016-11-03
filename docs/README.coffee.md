@@ -100,6 +100,7 @@ Features:
 3. each listener can see the value(s) provided by earlier listeners and edit or remove them
 4. listeners may run asynchronously using the [pause/resume ability](https://github.com/elidoran/chain-builder#api-controlpause) of [chain-builder](https://npmjs.com/package/chain-builder).
 
+Example:
 
     # Provide your own custom key lookups by adding a 'key' event listener
     kevas.on 'key', ->
