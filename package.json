@@ -24,7 +24,7 @@
     "prepublish": "npm run build",
     "postpublish": "npm run clean",
     "test": "mocha --compilers coffee:coffee-script/register --reporter spec --bail --check-leaks test/lib",
-    "devrun": "coffee bin/kevas.js"
+    "devrun": "coffee bin/kevas.js --"
   },
   "repository": {
     "type": "git",
