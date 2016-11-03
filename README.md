@@ -9,6 +9,11 @@ Think Mustache, but, streamed instead of loading the entire string into memory t
 
 Kevas : **KE**y **VA**lue **S**tream -> KE + VA + S
 
+**Version 3.0.0 almost ready**
+
+It updates how it processes, adds a cli for transforming on the console, and will change this README to JavaScript.
+
+
 ## Install
 
 ```sh
