@@ -1,5 +1,5 @@
 
-**3.0.0 - Unreleased**
+**3.0.0 - Released 2016/11/03**
 
 (Changes 1-5 have been sitting on my computer for over a year, woops)
 
@@ -10,6 +10,8 @@
 5. swap async.waterfall for chain-builder
 6. update deps
 7. add `kevas` cli which transforms `stdin` and sends it to `stdout`. It gets the values via `nuc` and `value-store` loading files, using CLI args and environment variables.
+8. revised the README content, added CLI section, and changed examples to JavaScript
+9. created CoffeeScript version of README in `docs/`
 
 
 **2.0.2 - Released 2015/09/21**
