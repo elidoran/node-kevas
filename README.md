@@ -9,6 +9,8 @@ Think Mustache, but, streamed instead of loading the entire string into memory t
 
 kevas = **ke** y **va** lue **s** tream => ke + va + s
 
+[CoffeeScript README](https://github.com/elidoran/node-kevas/blob/master/docs/README.coffee.md)
+
 
 ## Install
 
