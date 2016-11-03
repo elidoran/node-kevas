@@ -3,6 +3,7 @@
   "version": "2.0.2",
   "description": "Stream replacing {{keys}} with values",
   "main": "lib",
+  "bin": "bin/kevas.js",
   "author": "Eli Doran <eli+npm@elidoran.com>",
   "license": "MIT",
   "keywords": [
