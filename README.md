@@ -30,6 +30,8 @@ I looked at multiple implementations of this and found every one of them reads t
 ## Usage: Build it
 
 ```javascript
+// Three build methods:
+
 // 1. get the builder function and use it separately
 var buildKevas = require('kevas')
   , kevas = buildKevas();
@@ -41,12 +43,15 @@ var kevas = require('kevas')();
 var Kevas = require('kevas').Kevas
   , kevas = new Kevas;
 
-// Provide the values to the instance at build time:
+
+// Two methods of providing values at build time:
+
+// 1. Provide the values to the instance at build time:
 var values = {}
   , options = { values: values }
   , kevas = buildKevas(options);
 
-// Alternate `values` has a `get(key)` function:
+// 2a. Alternate `values` has a `get(key)` function:
 var valuesObject = {}
   , valuesGetter = {
     get: function get(key) { return valuesObject[key]; }
@@ -54,7 +59,7 @@ var valuesObject = {}
   , options = { values: valuesGetter }
   , kevas = buildKevas(options);
 
-// Use module 'value-store' for the `values`:
+// 2b. Use module 'value-store' for the `values`:
 var buildValueStore = require('value-store')
   , valueStore = buildValueStore()
   , options = { values: valueStore }
@@ -101,10 +106,7 @@ Features:
 4. listeners may run asynchronously using the [pause/resume ability](https://github.com/elidoran/chain-builder#api-controlpause) of [chain-builder](https://npmjs.com/package/chain-builder).
 
 ```javascript
-// As shown above, when providing a `values` to `buildKevas()` it will
-// cause it to add a default key lookup listener using it.
-
-// Provide your own custom key lookups by add a 'key' event listener
+// Provide your own custom key lookups by adding a 'key' event listener
 kevas.on('key', function() {
 
   // you may inspect values already provided.
@@ -116,7 +118,7 @@ kevas.on('key', function() {
   // if there's a value for that key...
   if (value) {
     // ensure the value is a string
-    if ('string' !== typeof(value)) value = '' + value;
+    if ('string' != typeof(value)) value = '' + value;
 
     // provide it by adding it to `this.values` array
     this.values.push(value);
@@ -217,7 +219,7 @@ Example with command line arg:
 cat input.file | kevas --NUCID=someId
 ```
 
-Example using nuc:
+Example using a `.nuc.name` file:
 
 ```sh
 # make a .nuc.name file with the id:
@@ -237,6 +239,18 @@ cat input.file | kevas
 
 # that command will print the same output shown in all the examples:
 testing shows: 1 + 2 = 3 is true
+
+# use nuc to alter the values
+nuc set one some
+nuc set two thing
+nuc set three something
+nuc set result a nonesense example
+
+# rerun kevas
+cat input.file | kevas
+
+# prints:
+testing shows: some + thing = something is a nonsense example
 ```
 
 Review the [nuc](https://npmjs.com/package/nuc) module to see all it has to offer. It allows a hierarchy of configuration files to make use of environment specific configurations and global/system/user level config files.
@@ -244,7 +258,9 @@ Review the [nuc](https://npmjs.com/package/nuc) module to see all it has to offe
 
 ## Escapes
 
-Simplified escaping: an escape slash before the first of a pair of braces will escape that pair.
+Simplified escaping: an unescaped escape slash before the first of a pair of braces will escape that pair.
+
+So, `\{{` is escaped and `\\{{` is not. When writing a string in code we must escape the escape slash so it looks like `\\{{` to provide escaping content and `\\\\{{` to escape the escape slash.
 
 
 ## Compatibility
