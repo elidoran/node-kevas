@@ -2,6 +2,7 @@ buildSearch = require 'stream-search-helper'
 buildChain  = require 'chain-builder'
 
 class Kevas extends (require 'stream').Transform
+
   constructor: (options) ->
     super options
     @_handleExtra = @_pushString
@@ -12,10 +13,26 @@ class Kevas extends (require 'stream').Transform
       groups:2 # two regex groups we want
     @_key = ''
 
+    # if some `values` were provided
     if options?.values?
+
+      # alias
       values = options.values
-      @on 'key', (control, context) ->
-        context.values.push values[context.key] if values[context.key]?
+
+      # check if `values` has a get() function.
+      # when it does, let's consider that the way to get the values
+      if typeof values.get is 'function'
+        @on 'key', ->
+          value = values.get @key            # get the `value` from our `values`
+          if value? # when exists, add to context's `values`, as a string
+            if typeof value isnt 'string' then value = '' + value
+            @values.push value
+
+      else # otherwise, treat `values` as an object with keys
+        @on 'key', -> if values[@key]? then @values.push values[@key]
+
+    return
+
 
   _appendKey: (string) -> @_key += string  # accumulate key value
 
