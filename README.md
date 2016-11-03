@@ -7,156 +7,252 @@ Stream replacing {{keys}} with values.
 
 Think Mustache, but, streamed instead of loading the entire string into memory to process it.
 
-Kevas : **KE**y **VA**lue **S**tream -> KE + VA + S
-
-**Version 3.0.0 almost ready**
-
-It updates how it processes, adds a cli for transforming on the console, and will change this README to JavaScript.
+kevas = **ke** y **va** lue **s** tream => ke + va + s
 
 
 ## Install
 
+Install as a local library or globally as a CLI.
+
 ```sh
 npm install kevas --save
+
+# for `kevas` CLI
+npm install kevas -g
 ```
 
-## Usage: Simple
 
-```coffeescript
-kevas = require('kevas') values:key:'value'   # create kevas with a key/value map
-source.pipe(kevas).pipe(target)        # pipe text thru kevas to target
-target.on 'finish', ->                 # do something when finished
-  console.log 'all done, targetStream has it all...'
-```
+## Memory Usage
 
-## Usage: More
+I looked at multiple implementations of this and found every one of them reads the entire content into a single string before processing it. This implementation retains as little content as possible in memory between `_transform()` calls: 3 characters.
 
-```coffeescript
-# 1. create a new stream and provide the key/value pairs to use for replacing
-kevas = require('kevas') values:
-  some:'value'
-  an:'other'
-  thing:'here'
 
-# 2. and, you may provide an event listener to handle the keys.
-# receives `event` which contains:
-#   key: the key
-#   values: an array to add values to which will be pushed to the stream
-kevas.on 'key', (event) ->
-  value = getValueForKey event.key
-  if value? then event.values.push value
-  else
-    # do what you decide...
+## Usage: Build it
 
-# 3. and, an event listener can do async work
-kevas.on 'key', (event, next) ->
-  getValueForKey event.key, (value) ->
-    if value?
-      event.values.push value
-    else
-      # do what you decide...
-    # call next listener. provide the event
-    next undefined, event
+```javascript
+// 1. get the builder function and use it separately
+var buildKevas = require('kevas')
+  , kevas = buildKevas();
 
-# pipe in the content with the keys and pipe out the result with value replacements.
-someSource.pipe(kevas).pipe(someTarget)
+// 2. get the builder function and use it at once
+var kevas = require('kevas')();
 
-# only want the keys from it? add a listener (like above) and then pipe the source in.
-
-# have the source as a string? write it in:
-kevas.pipe(someTarget)
-kevas.write yourString, yourEncoding, callback
-kevas.end()
-
-# or turn the string into a stream and pipe it:
-input = require('strung') 'your string content to pipe'
-input.pipe(kevas)
-
-# want the output as a string?
-output = require('strung') ()
-output.on 'finish', ->
-  console.log 'result:',output.string
-someSource.pipe(kevas).pipe(output)
-```
-
-## Example
-
-```coffeescript
-buildKevas  = require 'kevas'
-strung = require 'strung'
-
-# create our from/input/source stream, also used as to/output/target stream
-strings = strung 'some {{okey}} is just as good as a {{lkey}}, right?'
-
-# create a key/value object for the two methods of replacing keys.
-internalValues = okey:'internal value'
-listenerValues = lkey:'listener value'
-
-# create our kevas instance which uses the internalValues
-kevas = buildKevas values:internalValues
-
-# add a key listener which uses the listenerValues
-kevas.on 'key', (event) ->
-  value = listenerValues[event.key]
-  event.values.push value if value?
-
-# add a listener for when the output is finished (as target, not on *end* as source)
-strings.on 'finish', ->
-  console.log 'result:',strings.string  
-
-# finally pipe our string thru kevas and into a collecting stream
-strings.pipe(kevas).pipe(strings)
-
-#console :=>
-# result: some internal value is just as good as a listener value, right?
-
-# NOTE: if the key existed in both, and both pushed their value, then both values would
-# be in the result.
-
-# NOTE: the later listener can see previously provided values in
-# `event.values` array, and can remove or edit them.
-```
-
-## Creating Kevas instance
-
-```coffeescript
-# 1. direct at require time
-kevas = require('kevas') keyValueObject
-
-# 2. from required builder function
-buildKevas = require 'kevas'
-kevas      = buildKevas keyValueObject
-
-# 3. from Kevas class
-{Kevas} = require 'kevas'
-kevas   = new Kevas keyValueObject
-```
-
-For JavaScript without destructuring assignments:
-```JavaScript
+// 3. get the Kevas class and instatiate directly
 var Kevas = require('kevas').Kevas
-var kevas = new Kevas(keyValueObject)
+  , kevas = new Kevas;
+
+// Provide the values to the instance at build time:
+var values = {}
+  , options = { values: values }
+  , kevas = buildKevas(options);
+
+// Alternate `values` has a `get(key)` function:
+var valuesObject = {}
+  , valuesGetter = {
+    get: function get(key) { return valuesObject[key]; }
+  }
+  , options = { values: valuesGetter }
+  , kevas = buildKevas(options);
+
+// Use module 'value-store' for the `values`:
+var buildValueStore = require('value-store')
+  , valueStore = buildValueStore()
+  , options = { values: valueStore }
+  , kevas = buildKevas(options);
 ```
 
-## Listeners
 
-Adding key listeners allows:
+## Usage: Example
 
-1. asynchronous operations to translate keys
-2. override values submitted by previous listeners
+```javascript
+var buildKevas = require('kevas')
+  , values = { key: 'value' }
+  , kevas = buildKevas({ values: values })
+  , source = getSomeReadableStream()
+  , target = getSomeWritableStream();
 
-Note, the first listener uses the internal values provided when the Kevas instance was created. So, to override the internal values, use a listener and remove that value from the result array: `event.values`.
+// pipe content through `kevas` to replace the keys
+source.pipe(kevas).pipe(target);
+
+// do something when finished processing the stream
+target.on('finish', function () {
+  console.log('all done, target stream has it all...');
+});
+
+// if the source stream provided:
+//   'test some {{key}} in kevas'
+// then the target stream would receive:
+//   'test some value in kevas'
+
+// or, write strings directly to the `kevas` instance
+kevas.write('test some {{key}} in kevas');
+```
+
+
+## Usage: Custom Key Lookup
+
+Keys are replaced using `key` event listeners run with a [chain-builder](https://npmjs.com/package/chain-builder) chain.
+
+Features:
+
+1. provide custom key lookup
+2. add multiple of them
+3. each listener can see the value(s) provided by earlier listeners and edit or remove them
+4. listeners may run asynchronously using the [pause/resume ability](https://github.com/elidoran/chain-builder#api-controlpause) of [chain-builder](https://npmjs.com/package/chain-builder).
+
+```javascript
+// As shown above, when providing a `values` to `buildKevas()` it will
+// cause it to add a default key lookup listener using it.
+
+// Provide your own custom key lookups by add a 'key' event listener
+kevas.on('key', function() {
+
+  // you may inspect values already provided.
+  // they are in the `this.values` array
+
+  // use some way to get a value for the key `this.key`
+  var value = getValueForKey(this.key);
+
+  // if there's a value for that key...
+  if (value) {
+    // ensure the value is a string
+    if ('string' !== typeof(value)) value = '' + value;
+
+    // provide it by adding it to `this.values` array
+    this.values.push(value);
+  }
+});
+
+// a key lookup can do async work.
+kevas.on('key', function(control, context) {
+  var resume = control.pause('using an async key lookup');
+
+  // example async function accepting a callback
+  getValueForKey(this.key, function(error, value) {
+    if (error) {
+      // tell the chain we had an error.
+      // in kevas this error will be passed to the stream.
+      control.fail('key lookup failed', error);
+    } else {
+      // provide your value
+      context.values.push(value);
+    }
+
+    // always call resume
+    resume();
+  })
+});
+```
+
+
+## Usage: Just the Keys
+
+Retrieve only the keys via the same listener style.
+
+```javascript
+kevas.on('key', function() {
+  console.log('the key =', this.key);
+});
+```
+
+## Usage: CLI
+
+The `kevas` cli reads input from `stdin` and writes transformed content to `stdout`.
+
+Provide values via multiple methods provided by modules [nuc](https://npmjs.com/package/nuc) and [value-store](https://npmjs.com/package/value-store).
+
+1. provide keys as arguments and they will be used as `key=true`
+2. provide key/value pairs as arguments like `key=value`
+3. provide file paths as arguments and they'll be loaded into a [value-store](https://npmjs.com/package/value-store). Note, they are checked in order, so, earlier files will override values in later files
+4. access configuration files for an app ID you provide on the command line, or via other [nuc](https://npmjs.com/package/nuc) methods.
+
+Examples of key and key=value args:
+
+```sh
+# read a file, replace its keys, write to console
+cat input.file | kevas one=1 two=2 three=3 result
+
+# when 'some.file' contains:
+testing shows: {{one}} + {{two}} = {{three}} is {{result}}
+
+# then the console prints:
+testing shows: 1 + 2 = 3 is true
+```
+
+Example of loading a JSON file with the same values as the above example. Note, you may also use INI files.
+
+First, the JSON file at `some/values/file.json`:
+
+```json
+{
+  "one"   : 1,
+  "two"   : 2,
+  "three" : 3,
+  "result": true
+}
+```
+
+Now, run the command for the same results as above:
+
+```sh
+cat input.file | kevas some/values/file.json
+
+# with the same input file it will print the same output as above:
+testing shows: 1 + 2 = 3 is true
+```
+
+To use [nuc](https://npmjs.com/package/nuc) loaded values requires a bit more.
+
+Provide an app id to `nuc` via:
+
+1. command line arg: `--NUCID=someId`
+2. a '.nuc.name' file in the current working directory with the app ID as its only content
+    ```
+    someId
+    ```
+
+Example with command line arg:
+
+```sh
+cat input.file | kevas --NUCID=someId
+```
+
+Example using nuc:
+
+```sh
+# make a .nuc.name file with the id:
+echo "someId" > .nuc.name
+
+# set the values via nuc.
+# 'local' scope makes it create a local file to set into
+# file: someId.json
+# then, later calls will find and use that file.
+nuc set one 1 local
+nuc set two 2
+nuc set three 3
+nuc set result true
+
+# then make the call and nuc will find .nuc.name and lookup those values
+cat input.file | kevas
+
+# that command will print the same output shown in all the examples:
+testing shows: 1 + 2 = 3 is true
+```
+
+Review the [nuc](https://npmjs.com/package/nuc) module to see all it has to offer. It allows a hierarchy of configuration files to make use of environment specific configurations and global/system/user level config files.
+
 
 ## Escapes
 
-Originally I was determined to avoid allowing escaped braces. Then, I decided I'd better allow it and added the functionality.
-It's a pain to implement, so, I've simplified it. An escape slash before the first of a pair of braces will escape that pair.
+Simplified escaping: an escape slash before the first of a pair of braces will escape that pair.
+
 
 ## Compatibility
 
-Can this parse mustache templates? No? Yes? I think there are some variations between our parsing results. I intend to load some tests which run against the `mustache` module to monitor its functionality. Then, make a "mode" in options to have this adhere to mustache's parsing style.
+Can this parse mustache templates? No? Yes? I think there are some variations between our parsing results. I have yet to make a comparison.
 
 Can this parse handlebars templates? No. This module only considers the contents of the `{{}}` to be a string representing the key for the value. Handlebars does more and has logic and other things in there. It's possible to get the keys via this module and do anything you'd like with them, so, treat them as a bit of code for Handlebars and you're all set.
+
 
 ## Why?
 
@@ -164,12 +260,6 @@ I made this module so I could use it to process files via streaming and replace 
 
 I looked at `mustache` and `handlebars` and a few other modules. Each required loading the entire string to process it. And, most used regular expressions (I like regular expressions, just, not for this parsing task).
 
-```coffeescript
-# create a replacing stream referencing the key/value pairs we have.
-kevas = require 'kevas', values:theValues
-
-# pipe file through stream to a new file
-sourceFile.pipe(kevas).pipe(targetFile)
-```
+A stream may remain open and receive new content over time to parse, replace keys, and push on. It's possible to setup a stream which sends messages, maybe log messages, to another machine and replaces special tags with information on its way out.
 
 ### MIT License
