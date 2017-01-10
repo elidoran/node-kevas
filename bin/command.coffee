@@ -14,7 +14,7 @@ id = nuc.findId()
 # now build a value store either:
 values =
   # 1. directly, when there's no id
-  if id?.__error? then buildValueStore()
+  if id?.__error? then buildValueStore [{}]
   # 2. via `nuc` when there is an id
   else nuc id:id, collapse:false, stack:true
 
