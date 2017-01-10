@@ -1,3 +1,8 @@
+**3.0.1 - Released 2017/01/10**
+
+1. fix value-store being built empty and not storing set key/value pairs from command line args
+2. update deps
+3. add 2017 to license
 
 **3.0.0 - Released 2016/11/03**
 
