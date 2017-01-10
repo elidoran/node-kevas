@@ -33,14 +33,14 @@
   },
   "bugs": "http://github.com/elidoran/node-kevas/issues",
   "devDependencies": {
-    "coffee-script": "^1.11.1",
+    "coffee-script": "^1.12.2",
     "fspath": "^0.14.0",
-    "mocha": "^3.1.2",
-    "strung": "^1.0.5",
-    "through2": "^2.0.1"
+    "mocha": "^3.2.0",
+    "strung": "^1.1.2",
+    "through2": "^2.0.3"
   },
   "dependencies": {
-    "chain-builder": "^0.11.1",
+    "chain-builder": "^0.11.2",
     "nuc": "^0.4.0",
     "stream-search-helper": "^0.7.1"
   }
