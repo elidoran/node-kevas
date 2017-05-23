@@ -119,7 +119,7 @@ class Kevas extends (require 'stream').Transform
 
   _emitKey: (key, done) ->
     context = key:key, values:[]
-    @_chain.run context:context, done:(error) =>
+    @_chain?.run context:context, done:(error) =>
       if error? then return done error
       @push value for value in context.values
       process.nextTick done
