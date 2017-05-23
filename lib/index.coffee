@@ -76,9 +76,7 @@ class Kevas extends (require 'stream').Transform
               @_handleExtra = @_pushString   # for later strings, push them
               key = @_key + @_combine result # get the accumulated key and emit it
               @_key = ''                     # reset key to empty string for appending
-              if results.length > 0 then process.nextTick =>
               return @_emitKey key.trim(), (error) =>
-                #if error? then return console.error 'key listeners error: ',error.message
                 if error? then done error
                 else @_parse results, done
 
