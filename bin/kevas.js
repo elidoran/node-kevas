@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require('./command');
+require('./command')(process.argv[2..], process.stdin, process.stdout);
