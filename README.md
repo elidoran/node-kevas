@@ -2,6 +2,7 @@
 [![Build Status](https://travis-ci.org/elidoran/node-kevas.svg?branch=master)](https://travis-ci.org/elidoran/node-kevas)
 [![Dependency Status](https://gemnasium.com/elidoran/node-kevas.png)](https://gemnasium.com/elidoran/node-kevas)
 [![npm version](https://badge.fury.io/js/kevas.svg)](http://badge.fury.io/js/kevas)
+[![Coverage Status](https://coveralls.io/repos/github/elidoran/node-kevas/badge.svg?branch=master)](https://coveralls.io/github/elidoran/node-kevas?branch=master)
 
 Stream replacing {{keys}} with values.
 
@@ -176,7 +177,7 @@ Examples of key and key=value args:
 # read a file, replace its keys, write to console
 cat input.file | kevas one=1 two=2 three=3 result
 
-# when 'some.file' contains:
+# when 'input.file' contains:
 testing shows: {{one}} + {{two}} = {{three}} is {{result}}
 
 # then the console prints:
