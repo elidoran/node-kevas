@@ -14,7 +14,7 @@ describe 'test kevas cli', ->
 
     log = console.log
     console.log = (s) ->
-      assert.equal s, 'kevas v3.0.1\n'
+      assert.equal s, 'kevas v4.0.0\n'
       console.log = log
 
     command ['--version']
@@ -23,7 +23,7 @@ describe 'test kevas cli', ->
 
     log = console.log
     console.log = (s) ->
-      assert.equal s, 'kevas v3.0.1\n'
+      assert.equal s, 'kevas v4.0.0\n'
       console.log = log
 
     command ['-v']
