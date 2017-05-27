@@ -10,63 +10,69 @@ Think Mustache, but, streamed instead of loading the entire string into memory t
 
 kevas = **ke** y **va** lue **s** tream => ke + va + s
 
-[CoffeeScript README](https://github.com/elidoran/node-kevas/blob/master/docs/README.coffee.md)
-
 
 ## Install
 
 Install as a local library or globally as a CLI.
 
 ```sh
-npm install kevas --save
+npm install --save kevas
 
 # for `kevas` CLI
-npm install kevas -g
+npm install -g kevas
 ```
 
 
 ## Memory Usage
 
-I looked at multiple implementations of this and found every one of them reads the entire content into a single string before processing it. This implementation retains as little content as possible in memory between `_transform()` calls: 3 characters.
+I looked at multiple implementations of this and found they read the entire content into a single string before processing it. This implementation retains as little content as possible in memory between `_transform()` calls.
 
 
 ## Usage: Build it
 
 ```javascript
-// Three build methods:
+// build methods:
 
 // 1. get the builder function and use it separately
 var buildKevas = require('kevas')
-  , kevas = buildKevas();
+var kevas = buildKevas()
 
 // 2. get the builder function and use it at once
-var kevas = require('kevas')();
-
-// 3. get the Kevas class and instatiate directly
-var Kevas = require('kevas').Kevas
-  , kevas = new Kevas;
+var kevas = require('kevas')()
 
 
 // Two methods of providing values at build time:
 
-// 1. Provide the values to the instance at build time:
+// 1. Provide an object:
 var values = {}
-  , options = { values: values }
-  , kevas = buildKevas(options);
 
-// 2a. Alternate `values` has a `get(key)` function:
+var options = { values: values }
+
+var kevas = buildKevas(options)
+
+// 2a. Provide a `get(key)` function:
 var valuesObject = {}
-  , valuesGetter = {
-    get: function get(key) { return valuesObject[key]; }
-  }
-  , options = { values: valuesGetter }
-  , kevas = buildKevas(options);
 
-// 2b. Use module 'value-store' for the `values`:
+var options = {
+  values: function get(key) {
+    return valuesObject[key]
+  }
+}
+
+var kevas = buildKevas(options)
+
+// 2b. 'value-store' has a get(key) function:
 var buildValueStore = require('value-store')
-  , valueStore = buildValueStore()
-  , options = { values: valueStore }
-  , kevas = buildKevas(options);
+
+var valueStore = buildValueStore()
+
+var options = {
+  values: function get(key) {
+    return valueStore.get(key)
+  }
+}
+
+var kevas = buildKevas(valueStore)
 ```
 
 
@@ -74,18 +80,21 @@ var buildValueStore = require('value-store')
 
 ```javascript
 var buildKevas = require('kevas')
-  , values = { key: 'value' }
-  , kevas = buildKevas({ values: values })
-  , source = getSomeReadableStream()
-  , target = getSomeWritableStream();
+
+var values = { key: 'value' }
+
+var kevas = buildKevas({ values: values })
+
+var source = getSomeReadableStream()
+var target = getSomeWritableStream()
 
 // pipe content through `kevas` to replace the keys
-source.pipe(kevas).pipe(target);
+source.pipe(kevas).pipe(target)
 
 // do something when finished processing the stream
 target.on('finish', function () {
-  console.log('all done, target stream has it all...');
-});
+  console.log('all done, target stream has it all...')
+})
 
 // if the source stream provided:
 //   'test some {{key}} in kevas'
@@ -93,72 +102,9 @@ target.on('finish', function () {
 //   'test some value in kevas'
 
 // or, write strings directly to the `kevas` instance
-kevas.write('test some {{key}} in kevas');
+kevas.write('test some {{key}} in kevas')
 ```
 
-
-## Usage: Custom Key Lookup
-
-Keys are replaced using `key` event listeners run with a [chain-builder](https://npmjs.com/package/chain-builder) chain.
-
-Features:
-
-1. provide custom key lookup
-2. add multiple of them
-3. each listener can see the value(s) provided by earlier listeners and edit or remove them
-4. listeners may run asynchronously using the [pause/resume ability](https://github.com/elidoran/chain-builder#api-controlpause) of [chain-builder](https://npmjs.com/package/chain-builder).
-
-```javascript
-// Provide your own custom key lookups by adding a 'key' event listener
-kevas.on('key', function() {
-
-  // you may inspect values already provided.
-  // they are in the `this.values` array
-
-  // use some way to get a value for the key `this.key`
-  var value = getValueForKey(this.key);
-
-  // if there's a value for that key...
-  if (value) {
-    // ensure the value is a string
-    if ('string' != typeof(value)) value = '' + value;
-
-    // provide it by adding it to `this.values` array
-    this.values.push(value);
-  }
-});
-
-// a key lookup can do async work.
-kevas.on('key', function(control, context) {
-  var resume = control.pause('using an async key lookup');
-
-  // example async function accepting a callback
-  getValueForKey(this.key, function(error, value) {
-    if (error) {
-      // tell the chain we had an error.
-      // in kevas this error will be passed to the stream.
-      control.fail('key lookup failed', error);
-    } else {
-      // provide your value
-      context.values.push(value);
-    }
-
-    // always call resume
-    resume();
-  })
-});
-```
-
-
-## Usage: Just the Keys
-
-Retrieve only the keys via the same listener style.
-
-```javascript
-kevas.on('key', function() {
-  console.log('the key =', this.key);
-});
-```
 
 ## Usage: CLI
 
@@ -281,4 +227,5 @@ I looked at `mustache` and `handlebars` and a few other modules. Each required l
 
 A stream may remain open and receive new content over time to parse, replace keys, and push on. It's possible to setup a stream which sends messages, maybe log messages, to another machine and replaces special tags with information on its way out.
 
-### MIT License
+
+# [MIT License](LICENSE)
