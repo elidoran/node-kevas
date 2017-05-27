@@ -2,23 +2,26 @@ module.exports = (args, input, output) ->
 
   corepath = require 'path'
   nuc      = require 'nuc'
-  buildValueStore = require('value-store')
+  buildValueStore = require 'value-store'
 
   # ouptput the version from the package.json file
   if '-v' in args or '--version' in args
     pkg = require corepath.join __dirname, '..', 'package.json'
     console.log "kevas v#{pkg.version}\n"
-    return process.exit(0)
+    return
 
   # see if there's an app id for `nuc` to use
   id = nuc.findId()
 
   # now build a value store either:
   values =
-    # 1. directly, when there's no id
-    if id?.__error? then buildValueStore [{}]
+    # 1. directly, when there's no id, or, an error getting the id
+    if not id? or id.__error? then buildValueStore [{}]
+
     # 2. via `nuc` when there is an id
-    else nuc id:id, collapse:false, stack:true
+    # NOTE: collapse into a single object.
+    else nuc(id:id, collapse:true, stack:false).store
+
 
   # now, try to load each cli arg into the value store
   for arg in args
@@ -35,22 +38,16 @@ module.exports = (args, input, output) ->
     else values.set arg[...index], arg[(index + 1)...]
 
 
-  # build our kevas transform
-  kevas = require('../lib')()
-
-  # add a key to value translator using our values
-  kevas.on 'key', ->
+  # build our kevas transform with key to value provider using our values
+  kevas = require('../lib') values: (key) ->
 
     # get value from values store
-    value = values.get @key
+    value = values.get key
 
     # if there's a value and it's not a string then convert it to one
     if value? and typeof value isnt 'string' then value = '' + value
 
-    # push the value or maintain the key in the content
-    @values.push value ? ('{{' + @key + '}}')
-
-    return
+    return value
 
   # setup pipeline
   input.pipe(kevas).pipe output
