@@ -1,6 +1,6 @@
 {
   "name": "kevas",
-  "version": "3.0.1",
+  "version": "4.0.0",
   "description": "Stream replacing {{keys}} with values",
   "main": "lib/index.js",
   "bin": "bin/kevas.js",
