@@ -1,137 +1,255 @@
-buildSearch = require 'stream-search-helper'
-buildChain  = require 'chain-builder'
+OPEN1  = 123 # {
+OPEN2  = Buffer.from '{{'
+CLOSE1 = 125 # }
+CLOSE2 = Buffer.from '}}'
+SLASH1 = 92  # \
+SLASH2 = Buffer.from '\\\\'
+SLASH  = Buffer.from '\\'
 
-class Kevas extends (require 'stream').Transform
+module.exports = (options) ->
 
-  constructor: (options) ->
-    super options
-    @_handleExtra = @_pushString
-    @_search = buildSearch
-      delim:/(\\{1,2})?({{|}})/
-      min:4 # \\{{ is 4
-      recurse:true # get all results at once from chunk
-      groups:2 # two regex groups we want
-    @_key = ''
+  transform = null  # transform we're building now in this function
+  buffer    = null  # will hold current buffer we're processing
+  cache     = []    # caches chunks which make up the key
+  cacheSize = 0     # number of bytes in cache for Buffer.concat()
+  index     = 0     # where are we in the current buffer
+  start     = 0     # where did the last unused content start
+  target1   = OPEN1 # at start we're looking for open braces
+  target2   = OPEN2
+  hadSlash  = false # was there an unescaped slash at tail of previous buffer?
+  hadTarget = false # was there an unescaped target1 at tail of previous buffer?
+  getValues =       # the function to get a value for a key
+    do (options) -> # either object or function in `options.values`
+      # NOTE: had to explicitly return `undefined` in noops because
+      #       coffee-coverage changed it to return a zero.
+      unless options? and options.values? then return -> undefined # noop
 
-    # if some `values` were provided
-    if options?.values?
+      if typeof options.values is 'function' then options.values
 
-      # alias
-      values = options.values
+      else if typeof options.values is 'object'
+        values = options.values
+        (key) -> values[key]
 
-      # check if `values` has a get() function.
-      # when it does, let's consider that the way to get the values
-      if typeof values.get is 'function'
-        @on 'key', ->
-          value = values.get @key            # get the `value` from our `values`
-          if value? # when exists, add to context's `values`, as a string
-            if typeof value isnt 'string' then value = '' + value
-            @values.push value
+      else -> undefined # noop
 
-      else # otherwise, treat `values` as an object with keys
-        @on 'key', -> if values[@key]? then @values.push values[@key]
+  # `pushOrCache` changed for different modes. OPEN :> push CLOSE :> cache
+  pushOrCache = doPush = (buffer) -> transform.push buffer
 
+  doCache = (buffer) -> # CLOSE mode caches content to combine as a key
+    cache.push buffer
+    cacheSize += buffer.length
+
+  # `switchTarget` changed for modes. OPEN :> toClose CLOSE :> toOpen
+  switchTarget = toClose = ->
+    # change what we're searching for and the mode based vars
+    target1 = CLOSE1
+    target2 = CLOSE2
+    switchTarget = toOpen
+    pushOrCache = doCache
+
+    if start < index # if there's content before {{ then push it
+      transform.push buffer.slice start, index
+
+    # move passed pair and set the start there as well.
+    start = index = index + 2
     return
 
+  toOpen = ->
+    # change what we're searching for and the mode based vars
+    target1 = OPEN1
+    target2 = OPEN2
+    switchTarget = toClose
+    pushOrCache = doPush
 
-  _appendKey: (string) -> @_key += string  # accumulate key value
+    if start < index # if there's content before }} then cache it
+      slice = buffer.slice start, index
+      cache.push slice
+      cacheSize += slice.length
 
-  _pushString: (string) -> @push string    # push strings to the next stream
+    # combine cache to get the "key" and reset cache vars
+    key = Buffer.concat(cache, cacheSize).toString('utf8')
+    cache.length = cacheSize = 0
 
-  _combine: (result) ->
-    delim = result.delim
-    string = result.before
-    result = switch delim.length
-      when 2 then string             # just braces
-      when 4 then string + '\\\\'    # escaped slashes are retained
+    # try to get a value for the key
+    value = getValues key
 
-    return result
+    # if there's a replacement value then push it
+    if value? then transform.push value
 
-  _transform: (string, encoding, done) ->
+    else # otherwise, push the original key with the braces around it
+      transform.push OPEN2
+      transform.push key
+      transform.push CLOSE2
 
-    string = string.toString 'utf8' # buffer becomes string, string returns itself
-    results = @_search string
-    @_parse results, done
+    # move passed pair and set the start there as well.
+    start = index = index + 2
+    return
 
-  _parse: (results, done) ->
+  consumeSlash = -> # helper makes push/cache ops skip over a slash.
+    # backup one from where we found a pair of braces to the slash.
+    before = index - 1
 
-    while results.length > 0
-      result = results.shift()
+    if start < before # if there's content before it then push/cache it.
+      slice = buffer.slice start, before
+      pushOrCache slice
 
-      # if it's a value before a found delim and it 'isn't escaped by a slash
-      if result.before? and result.g1 isnt '\\'
-        # what we do depends on the delim, more specifically, g2
-        switch result.g2 # use `g2` instead of `delim` to ignore captured slashes
+    start = index # start after slash
+    index++       # index moves after matched pair's first (escaped) brace
+    return
 
-          when '{{'                      # string is before the start of a key
-            @_handleExtra = @_appendKey  # for later strings, append to `key`
-            string = @_combine result    # combine `.before` and delim part
-            @push string                 # push the regular string
+  # build the transform using the convenience constructo
+  transform = new require('stream').Transform
 
-          when '}}'                        # string is before the end of a key
-            if @_handleExtra is @_pushString
-              # then the open braces were escaped, so, don't do key stuff
-              @_pushString @_combine(result) + '}}'
-            else
-              @_handleExtra = @_pushString   # for later strings, push them
-              key = @_key + @_combine result # get the accumulated key and emit it
-              @_key = ''                     # reset key to empty string for appending
-              return @_emitKey key.trim(), (error) =>
-                if error? then done error
-                else @_parse results, done
+    # we're deoding strings so chunk is always a buffer so we ignore the encoding.
+    transform: (chunk, _, done) ->
+      buffer = chunk     # move it to our outer variable.
+      index = start = 0  # reset the two indexing vars.
 
-      # if it's a string without a delim after it, handle one of two ways:
-      #  1. we're in non-key mode, so, it'll call _pushString
-      #  2. we're in key mode, so, it'll call _appendKey
-      else if result.string? then @_handleExtra result.string
+      # if we found a single targeted brace at the tail of the previous buffer
+      # and this buffer starts with one then we've found the pair we wanted.
+      if hadTarget is true and buffer[0] is target1
+        switchTarget this, buffer, start, index
+        # the above moves index/start by +2 which is usually right, but wrong now.
+        # set to `1` to move passed the single target brace we used.
+        index = start = 1
 
-      else # it found an escaped delim, so treat it like an extra string
-        @_handleExtra result.before + result.g2
+      # loop until we have no more buffer content to use
+      while index < buffer.length
 
-    # all done with results/chunk
-    done()
+        # search for the next pair of braces from where we left off.
+        index = buffer.indexOf target2, index
 
-  _flush: (done) -> # TODO: log warning about an unclosed tag?
-    end = @_search.end()            # get anything left in the searcher
-    @push end.string if end?.string?  # push it if there was something
-    done()
+        # let's look at slash line-up to decide what to do and whether to
+        # reinstate the hadSlash slash from the previous buffer.
+        switch index
 
-  on: (event, listener) ->
-    if event is 'key'
-      unless @_chain?
-        @_chain = buildChain array:[listener]
-      else
-        @_chain.add listener
-    else super event, listener
+          when -1 # didn't find a pair in the rest of the buffer.
+            escapePair   = false
+            escapeEscape = false
+            restoreSlash = hadSlash # maybe. if chunk length 1, target1 may be at 1
 
-  once: (event, listener) ->
-    if event is 'key'
-      fn = (control, context) =>
-        result = listener control, context
-        control.remove()
-        return result
-      @_chain.add fn
-    else super event, listener # there are no other events we use...
+          when 0 # found the pair at the start of this buffer
+            escapePair   = hadSlash
+            escapeEscape = false
+            restoreSlash = false
 
-  off: (event, listener) ->
-    if event is 'key' then @_chain.remove listener
-    else super event, listener # there are no other events we use...
+          when 1 # found the pair at 1 fo this buffer, check before it
+            escapePair   = buffer[0] is SLASH1
+            escapeEscape = hadSlash
+            restoreSlash = false
 
-  _emitKey: (key, done) ->
-    context = key:key, values:[]
-    @_chain?.run context:context, done:(error) =>
-      if error? then return done error
-      @push value for value in context.values
-      process.nextTick done
+          else # found the pair at 2 or greater, check before it
+            escapePair   = buffer[index - 1] is SLASH1
+            escapeEscape = buffer[index - 2] is SLASH1
+            restoreSlash = hadSlash
 
-# Use these ways:
-#  1. buildKevas = require 'kevas'
-#     stream = buildKevas options
-#
-#  2. stream = require('kevas') (options)
-#
-#  3a. {Kevas} = require 'kevas'
-#  3b. Kevas = require('kevas').Kevas
-#      stream = new Kevas some:'options'
-module.exports = (options) -> new Kevas options
-module.exports.Kevas = Kevas
+        # reset this because we used it above
+        hadSlash = false
+
+        if index >= 0 # if we found a pair then we handle things like this:
+
+          if restoreSlash then pushOrCache SLASH
+
+          if escapePair # there's a slash before the braces, maybe escape them.
+
+            if escapeEscape # there's a slash before the slash, so, it's escaped.
+
+              if index > 1     # when both slashes are in the current buffer,
+                consumeSlash() # then we consume the first one.
+                index--        # then we backup one to keep one of them.
+
+              switchTarget() # switch to searching for the other pair of braces
+
+            else consumeSlash() # escaped the pair of braces so consume the slash
+
+          else switchTarget() # no slashes, so, switch to searching for other braces
+
+        else # check if tail end has some info, escape slash or target1...
+
+          # reset these now to avoid a bunch of "else" statements.
+          hadTarget = hadSlash = false
+
+          # check the last bytes for a brace or slash
+          last = buffer.length - 1
+
+          switch buffer[last]
+
+            when target1 # a lone brace we're looking for
+              # TODO: if last is 0 ?
+
+              if last is 1 # special case: 1st slash would be in previous buffer
+
+                # `restoreSlash` tells if there was a slash in previous buffer
+                if buffer[0] isnt SLASH1 or restoreSlash is true
+
+                  # remember we matched a single target brace
+                  hadTarget = true
+
+                  # don't include our brace in the content handled at the bottom
+                  buffer = buffer.slice 0, 1
+
+              else # last >= 2 so we can check in buffer
+
+                if buffer[last - 1] is SLASH1 # maybe escaped
+
+                  if buffer[last - 2] is SLASH1 # escaped the slash instead
+                    hadSlash = true
+                    hadTarget = true
+                    buffer = buffer.slice start, last - 1
+
+                  else # is escaped, consume the slash, ignore the target1
+                    pushOrCache buffer.slice start, last - 1  # no slash/target1
+                    buffer = buffer.slice last, buffer.length # has target1
+
+                else # we matched a single target brace
+                  hadTarget = true
+
+                  # don't include brace in the content handled at the bottom
+                  buffer = buffer.slice start, last
+
+            when SLASH1 # a lone slash may escape brace in next buffer's start.
+
+              if buffer[last - 1] isnt SLASH1 # then it's not escaped
+
+                # remember we had an unescaped escape slash.
+                hadSlash = true
+
+                # don't include the slash in our content
+                buffer = buffer.slice start, last
+
+            else # no target1 or slash at the end.
+
+              # if there was a slash to restore then we restore it.
+              # only happens if no pair is found in entire buffer.
+              if restoreSlash then pushOrCache SLASH
+
+              if start > 0 # limit what we'll push/cache
+                buffer = buffer.slice start, buffer.length
+
+          # handles buffer for current mode.
+          pushOrCache buffer
+
+          # we're done when we reach the swith's else
+          return done()
+
+        # tail of loop
+
+      # we hit the end of the input buffer, loop stopped, we're done:
+      done()
+
+
+    flush: (done) ->      # if we were in CLOSE mode gathering a key,
+      if hadSlash then @push SLASH
+
+      if hadTarget then @push target2.slice(0, 1)
+
+      if cache.length > 0 # then output what was cached no.
+        @push OPEN2       # prepend the '{{' we found to switch mode to CLOSE.
+        @push each for each in cache
+        cache.length = cacheSize = 0  # reset the cache
+
+      done()
+
+
+  # way back up there we created `transform` which is the last thing so
+  # it is returned from the exported function.
